@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>繽紛分數冒險王國 - Fraction Wonderland</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+
+    body {
+      font-family: 'Fredoka', 'Noto Sans TC', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #ffeef8 0%, #e0f2fe 50%, #fef3c7 100%);
+      user-select: none;
+    }
+
+    /* 可愛彈跳動畫與自訂特效 */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(1deg); }
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes star-pop {
+      0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+      70% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-star {
+      animation: star-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* 答錯抖動 */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .shake {
+      animation: shake 0.4s ease-in-out;
+    }
+
+    /* 輸入方格發光美化 */
+    .frac-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.45);
+      border-color: #ec4899;
+      transform: scale(1.05);
+    }
+
+    /* 隱藏 Chrome / Safari 的 input number 箭頭 */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col items-center p-3 sm:p-6 relative overflow-x-hidden">
+
+  <!-- 頂部資訊列 (關卡選擇、星星存摺、音效切換) -->
+  <header class="w-full max-w-4xl bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-xl border-4 border-pink-200 flex flex-wrap items-center justify-between gap-4 mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 bg-gradient-to-tr from-pink-400 to-rose-400 rounded-2xl flex items-center justify-center text-white shadow-md text-2xl font-bold animate-bounce">
+        🍰
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-extrabold text-pink-600 tracking-wider">分數冒險王國</h1>
+        <p class="text-xs sm:text-sm text-slate-500 font-semibold">看圖識數 ‧ 儲星星 ‧ 解鎖榮譽徽章</p>
+      </div>
+    </div>
+
+    <!-- 星星存摺 & 徽章庫按鈕 -->
+    <div class="flex items-center gap-2 sm:gap-4 ml-auto">
+      <button onclick="toggleBadgeModal(true)" class="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-3 sm:px-4 py-2 rounded-2xl shadow-md transition transform active:scale-95">
+        <span class="text-xl">🏆</span>
+        <span class="text-sm sm:text-base">榮譽徽章館</span>
+        <span id="badge-count-pill" class="bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-black">0/6</span>
+      </button>
+
+      <div class="flex items-center gap-1.5 bg-yellow-100 border-2 border-yellow-300 text-yellow-800 font-black px-3 sm:px-4 py-2 rounded-2xl shadow-inner text-base sm:text-lg">
+        <span class="text-xl animate-spin" style="animation-duration: 8s;">⭐</span>
+        <span id="star-total">0</span>
+      </div>
+
+      <!-- 音效開關 -->
+      <button id="sound-btn" onclick="toggleSound()" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-2xl flex items-center justify-center text-lg text-slate-700 transition" title="開關聲音">
+        🔊
+      </button>
+    </div>
+  </header>
+
+  <!-- 分層關卡導覽 (Level Tabs) -->
+  <nav class="w-full max-w-4xl grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
+    <button onclick="switchLevel(1)" id="tab-lvl-1" class="level-tab bg-pink-500 text-white font-black py-2.5 px-3 rounded-2xl shadow-lg border-2 border-pink-400 flex flex-col items-center justify-center transition-all duration-200 transform scale-105">
+      <span class="text-xs uppercase tracking-wider text-pink-100">第一層</span>
+      <span class="text-sm sm:text-base font-bold">🍰 真分數探索</span>
+    </button>
+    <button onclick="switchLevel(2)" id="tab-lvl-2" class="level-tab bg-white text-slate-600 font-bold py-2.5 px-3 rounded-2xl shadow-sm border-2 border-slate-200 hover:border-pink-300 flex flex-col items-center justify-center transition-all duration-200">
+      <span class="text-xs uppercase tracking-wider text-slate-400">第二層</span>
+      <span class="text-sm sm:text-base font-bold">🍕 假分數與帶分數</span>
+    </button>
+    <button onclick="switchLevel(3)" id="tab-lvl-3" class="level-tab bg-white text-slate-600 font-bold py-2.5 px-3 rounded-2xl shadow-sm border-2 border-slate-200 hover:border-pink-300 flex flex-col items-center justify-center transition-all duration-200">
+      <span class="text-xs uppercase tracking-wider text-slate-400">第三層</span>
+      <span class="text-sm sm:text-base font-bold">➕ 同分母加減運算</span>
+    </button>
+    <button onclick="switchLevel(4)" id="tab-lvl-4" class="level-tab bg-white text-slate-600 font-bold py-2.5 px-3 rounded-2xl shadow-sm border-2 border-slate-200 hover:border-pink-300 flex flex-col items-center justify-center transition-all duration-200">
+      <span class="text-xs uppercase tracking-wider text-slate-400">第四層</span>
+      <span class="text-sm sm:text-base font-bold">✨ 等值分數大比拼</span>
+    </button>
+  </nav>
+
+  <!-- 主要互動遊戲看板 -->
+  <main id="game-card" class="w-full max-w-4xl bg-white/90 backdrop-blur-md rounded-3xl p-5 sm:p-8 shadow-2xl border-4 border-purple-200 flex flex-col items-center relative">
+    
+    <!-- 關卡進度與題數提示 -->
+    <div class="w-full flex items-center justify-between mb-4 border-b-2 border-slate-100 pb-3">
+      <div class="flex items-center gap-2">
+        <span id="level-badge" class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-xs sm:text-sm font-black border border-pink-300">
+          關卡 1-1
+        </span>
+        <span id="level-desc" class="text-xs sm:text-sm text-slate-500 font-medium hidden sm:inline">
+          觀察精準圖形，輸入對應分數
+        </span>
+      </div>
+      <div class="flex items-center gap-1 text-sm font-black text-purple-600 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200">
+        <span>連勝獎勵:</span>
+        <span id="streak-counter" class="text-base text-rose-500">🔥 0</span>
+      </div>
+    </div>
+
+    <!-- 數學圖形展示區 (合理的 SVG 圖形：披薩、彩色積木、分數長條) -->
+    <div class="w-full bg-gradient-to-b from-sky-50 to-pink-50 rounded-2xl p-4 sm:p-6 mb-6 flex flex-col items-center justify-center border-2 border-sky-200 min-h-[200px]">
+      <p id="question-prompt" class="text-base sm:text-lg font-black text-slate-700 mb-3 text-center">
+        請觀察下方圖形著色部分，寫出正確的分數：
+      </p>
+      
+      <!-- 動態圖形容器 -->
+      <div id="graphic-container" class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 my-2">
+        <!-- SVG 會在此動態注入 -->
+      </div>
+
+      <!-- 數學算式提示 (在第三、四層時顯示清晰的數學符號) -->
+      <div id="formula-display" class="hidden text-xl sm:text-3xl font-extrabold text-indigo-700 items-center gap-3 my-2 bg-white px-5 py-2.5 rounded-2xl shadow-sm border border-indigo-100">
+        <!-- 算式內容 -->
+      </div>
+    </div>
+
+    <!-- 核心互動區：上下左形式方格 (Mixed Fraction Input) -->
+    <div class="w-full flex flex-col items-center bg-rose-50/70 border-3 border-dashed border-rose-300 rounded-2xl p-4 sm:p-6 mb-6">
+      <div class="text-xs sm:text-sm text-pink-700 font-bold mb-3 flex items-center gap-1.5">
+        <span>✏️</span> 請在下方「上下左」方格填入你的答案（若無整數可填 0 或留空）：
+      </div>
+
+      <!-- 上下左方格核心結構 -->
+      <div class="flex items-center justify-center gap-3 sm:gap-4 my-2">
+        <!-- 左：整數方格 -->
+        <div class="flex flex-col items-center">
+          <span class="text-xs font-bold text-slate-400 mb-1">【左】整數</span>
+          <input id="input-whole" type="number" min="0" max="99" placeholder="0"
+                 class="frac-input w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl font-black text-center text-purple-700 bg-white rounded-2xl border-3 border-purple-300 shadow-md transition-all">
+        </div>
+
+        <!-- 帶分數乘號/銜接空白 -->
+        <div class="text-2xl font-black text-slate-300 select-none pb-5">&nbsp;</div>
+
+        <!-- 上下：分子與分母方格 -->
+        <div class="flex flex-col items-center">
+          <!-- 上：分子 -->
+          <div class="flex flex-col items-center">
+            <span class="text-xs font-bold text-slate-400 mb-1">【上】分子</span>
+            <input id="input-num" type="number" min="0" max="999" placeholder="分子"
+                   class="frac-input w-16 h-12 sm:w-20 sm:h-14 text-xl sm:text-2xl font-black text-center text-pink-600 bg-white rounded-xl border-3 border-pink-300 shadow-md transition-all">
+          </div>
+
+          <!-- 分數線 (清晰標準橫線) -->
+          <div class="w-18 sm:w-24 h-1.5 bg-slate-700 rounded-full my-1.5 shadow-sm"></div>
+
+          <!-- 下：分母 -->
+          <div class="flex flex-col items-center">
+            <input id="input-den" type="number" min="1" max="999" placeholder="分母"
+                   class="frac-input w-16 h-12 sm:w-20 sm:h-14 text-xl sm:text-2xl font-black text-center text-sky-600 bg-white rounded-xl border-3 border-sky-300 shadow-md transition-all">
+            <span class="text-xs font-bold text-slate-400 mt-1">【下】分母</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 標準分數閱讀預覽 (即時反映使用者輸入的分數樣貌) -->
+      <div class="mt-4 flex items-center gap-2 text-sm text-slate-500 font-semibold bg-white px-4 py-1.5 rounded-full border border-slate-200">
+        <span>你的答案預覽：</span>
+        <div id="preview-math" class="inline-flex items-center font-black text-slate-800 text-base">
+          <span class="text-slate-400 font-normal">請輸入數值</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按鈕區 -->
+    <div class="w-full flex items-center justify-center gap-3 sm:gap-5">
+      <button onclick="clearInputs()" class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 text-slate-600 font-bold transition transform active:scale-95 flex items-center gap-1.5">
+        <span>🔄</span> 清空重寫
+      </button>
+      <button onclick="checkAnswer()" class="px-8 sm:px-12 py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-yellow-500 hover:from-pink-600 hover:to-yellow-600 text-white font-extrabold text-lg sm:text-xl shadow-lg shadow-pink-300 transition transform active:scale-95 flex items-center gap-2">
+        <span>✨</span> 檢查答案！
+      </button>
+    </div>
+
+    <!-- 回饋提示泡泡 (答對/答錯時彈出) -->
+    <div id="feedback-box" class="hidden mt-5 w-full p-4 rounded-2xl text-center font-black text-base sm:text-lg transition-all"></div>
+  </main>
+
+  <!-- 徽章收集館 (兌換與獎勵視窗) -->
+  <div id="badge-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full border-4 border-yellow-300 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <!-- 關閉按鈕 -->
+      <button onclick="toggleBadgeModal(false)" class="absolute top-4 right-4 w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center font-black text-slate-500 text-lg">
+        ✕
+      </button>
+
+      <div class="text-center mb-6">
+        <h2 class="text-2xl sm:text-3xl font-black text-amber-600 flex items-center justify-center gap-2">
+          <span>👑</span> 星星徽章陳列館
+        </h2>
+        <p class="text-slate-500 text-sm mt-1">累積星星即可榮譽解鎖各種可愛成就徽章！</p>
+        <div class="mt-3 inline-flex items-center gap-2 bg-yellow-100 border border-yellow-300 px-4 py-1.5 rounded-full text-yellow-800 font-extrabold text-sm">
+          <span>目前持有星星：</span>
+          <span class="text-lg text-amber-600" id="modal-star-count">0</span> ⭐
+        </div>
+      </div>
+
+      <!-- 徽章清單卡片 -->
+      <div id="badges-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- JS 動態生成徽章卡片 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 彩帶紙片特效 Canvas (全螢幕 Celebration) -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-40 hidden"></canvas>
+
+  <script>
+    /* ==========================================================
+       1. 聲音音效引擎 (Web Audio API - 純純合成，免外掛音檔)
+       ========================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playNote(freq, type = 'sine', duration = 0.2, gainValue = 0.15) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(gainValue, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
+      }
+      correctSound() {
+        // 歡快三和弦 (C5, E5, G5, C6)
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.playNote(freq, 'triangle', 0.28, 0.2), idx * 80);
+        });
+      }
+      wrongSound() {
+        // 低音警告聲
+        this.playNote(220, 'sawtooth', 0.25, 0.2);
+        setTimeout(() => this.playNote(180, 'sawtooth', 0.3, 0.2), 120);
+      }
+      starSound() {
+        // 高音鈴鐺閃光聲
+        const notes = [987.77, 1318.51, 1567.98, 2093.00];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.playNote(freq, 'sine', 0.35, 0.15), idx * 60);
+        });
+      }
+      badgeUnlockSound() {
+        // 史詩榮譽解鎖大和弦
+        const chord = [440, 554.37, 659.25, 880, 1108.73, 1318.51];
+        chord.forEach((freq, idx) => {
+          setTimeout(() => this.playNote(freq, 'triangle', 0.6, 0.25), idx * 90);
+        });
+      }
+      clickSound() {
+        this.playNote(700, 'sine', 0.08, 0.08);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    function toggleSound() {
+      sound.enabled = !sound.enabled;
+      const btn = document.getElementById('sound-btn');
+      btn.innerText = sound.enabled ? '🔊' : '🔇';
+      btn.classList.toggle('opacity-60', !sound.enabled);
+    }
+
+    /* ==========================================================
+       2. 徽章系統資料與星星儲蓄 (Badge & Star System)
+       ========================================================== */
+    const BADGES = [
+      { id: 'b1', name: '分數小學徒', emoji: '🥉', needStars: 3, desc: '踏入分數王國的第一步！', unlocked: false },
+      { id: 'b2', name: '披薩切片大師', emoji: '🍕', needStars: 8, desc: '能精準辨別披薩圓形切片', unlocked: false },
+      { id: 'b3', name: '巧克力巧手', emoji: '🍫', needStars: 15, desc: '長條長條，塊塊清楚！', unlocked: false },
+      { id: 'b4', name: '帶分數騎士', emoji: '👑', needStars: 24, desc: '精通上下左帶分數格式', unlocked: false },
+      { id: 'b5', name: '分數神算子', emoji: '⚡', needStars: 35, desc: '同分母加減運算難不倒你', unlocked: false },
+      { id: 'b6', name: '鑽石分數國王', emoji: '💎', needStars: 50, desc: '通曉等值分數的絕頂高手！', unlocked: false }
+    ];
+
+    let totalStars = 0;
+    let currentStreak = 0;
+    let currentLevel = 1;
+    let currentQuestion = null;
+
+    /* ==========================================================
+       3. 題庫生成器 (合理圖形 + 嚴格分數計算)
+       ========================================================== */
+    // 輔助函式：計算最大公因數
+    function gcd(a, b) {
+      return b === 0 ? a : gcd(b, a % b);
+    }
+
+    // 關卡 1：真分數 (以披薩切片或巧克力積木呈現)
+    function genLevel1() {
+      const denominators = [2, 3, 4, 5, 6, 8];
+      const den = denominators[Math.floor(Math.random() * denominators.length)];
+      const num = Math.floor(Math.random() * (den - 1)) + 1; // 1 <= num < den
+      const shapeType = Math.random() > 0.5 ? 'circle' : 'bar';
+
+      return {
+        level: 1,
+        title: '關卡 1 - 真分數認識',
+        prompt: `仔細觀察下方的${shapeType === 'circle' ? '美味披薩' : '甜心巧克棒'}，寫出「彩色著色部分」佔全體的幾分之幾：`,
+        shapeType,
+        items: [{ den, num }],
+        formula: null,
+        target: { whole: 0, num, den }
+      };
+    }
+
+    // 關卡 2：假分數與帶分數 (2-3 個完整的單位圖 + 一個不完整單位)
+    function genLevel2() {
+      const den = [2, 3, 4, 5, 6][Math.floor(Math.random() * 5)];
+      const whole = Math.floor(Math.random() * 2) + 1; // 1 或 2 個完整
+      const remNum = Math.floor(Math.random() * (den - 1)) + 1;
+      const totalNum = whole * den + remNum;
+      const shapeType = Math.random() > 0.4 ? 'circle' : 'bar';
+
+      const items = [];
+      for (let i = 0; i < whole; i++) {
+        items.push({ den, num: den }); // 完整的
+      }
+      items.push({ den, num: remNum }); // 剩餘的
+
+      return {
+        level: 2,
+        title: '關卡 2 - 假分數與帶分數',
+        prompt: `這裏有多個${shapeType === 'circle' ? '披薩' : '積木條'}，請以「帶分數」（整數加真分數）形式填入上下左方格：`,
+        shapeType,
+        items,
+        formula: null,
+        target: { whole, num: remNum, den, altImproper: { whole: 0, num: totalNum, den } }
+      };
+    }
+
+    // 關卡 3：同分母分數加減法
+    function genLevel3() {
+      const den = [4, 5, 6, 8, 10][Math.floor(Math.random() * 5)];
+      const isAdd = Math.random() > 0.4;
+      let num1, num2, resNum;
+
+      if (isAdd) {
+        num1 = Math.floor(Math.random() * (den - 2)) + 1;
+        num2 = Math.floor(Math.random() * (den - num1 - 1)) + 1;
+        resNum = num1 + num2;
+      } else {
+        num1 = Math.floor(Math.random() * (den - 1)) + 2;
+        num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
+        resNum = num1 - num2;
+      }
+
+      return {
+        level: 3,
+        title: '關卡 3 - 同分母加減運算',
+        prompt: `請計算算式，看圖形合併或扣除後的結果：`,
+        shapeType: 'bar',
+        items: [{ den, num: num1, label: '第1部分' }, { den, num: num2, label: '第2部分' }],
+        formula: {
+          op: isAdd ? '+' : '−',
+          left: { whole: 0, num: num1, den },
+          right: { whole: 0, num: num2, den }
+        },
+        target: { whole: 0, num: resNum, den }
+      };
+    }
+
+    // 關卡 4：等值分數 / 約分
+    function genLevel4() {
+      const basePairs = [
+        { num: 1, den: 2 },
+        { num: 1, den: 3 },
+        { num: 2, den: 3 },
+        { num: 1, den: 4 },
+        { num: 3, den: 4 },
+        { num: 2, den: 5 }
+      ];
+      const base = basePairs[Math.floor(Math.random() * basePairs.length)];
+      const multiplier = Math.floor(Math.random() * 3) + 2; // x2, x3, x4
+      const expNum = base.num * multiplier;
+      const expDen = base.den * multiplier;
+
+      return {
+        level: 4,
+        title: '關卡 4 - 等值分數挑戰',
+        prompt: `觀察兩個圖形大小一樣！請將右邊分數化為「最簡真分數」（約分）：`,
+        shapeType: 'circle',
+        items: [
+          { den: expDen, num: expNum, label: `擴分圖 (${expNum}/${expDen})` },
+          { den: base.den, num: base.num, label: `最簡圖 (?/${base.den})` }
+        ],
+        formula: {
+          op: '=',
+          left: { whole: 0, num: expNum, den: expDen },
+          right: { whole: 0, num: '?', den: base.den }
+        },
+        target: { whole: 0, num: base.num, den: base.den }
+      };
+    }
+
+    /* ==========================================================
+       4. 合理數學圖形繪製 (SVG Accurate Rendering)
+       ========================================================== */
+    function createCircleSVG(den, num, label = '', size = 130) {
+      const radius = 55;
+      const center = size / 2;
+      const anglePerSlice = (2 * Math.PI) / den;
+      
+      let slicesPath = '';
+      for (let i = 0; i < den; i++) {
+        const startAngle = i * anglePerSlice - Math.PI / 2;
+        const endAngle = (i + 1) * anglePerSlice - Math.PI / 2;
+        
+        const x1 = center + radius * Math.cos(startAngle);
+        const y1 = center + radius * Math.sin(startAngle);
+        const x2 = center + radius * Math.cos(endAngle);
+        const y2 = center + radius * Math.sin(endAngle);
+        
+        const largeArc = anglePerSlice > Math.PI ? 1 : 0;
+        const pathD = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        
+        // 前 num 片塗上亮眼粉色/橘黃色，其餘塗上淺白米色
+        const isFilled = i < num;
+        const fill = isFilled ? '#fb7185' : '#fff7ed';
+        const stroke = '#f43f5e';
+
+        slicesPath += `<path d="${pathD}" fill="${fill}" stroke="${stroke}" stroke-width="2" class="transition-all hover:opacity-80"/>`;
+        
+        // 裝飾披薩小配料 (著色區加上小蘑菇點)
+        if (isFilled) {
+          const midAngle = startAngle + anglePerSlice / 2;
+          const dotR = radius * 0.6;
+          const dotX = center + dotR * Math.cos(midAngle);
+          const dotY = center + dotR * Math.sin(midAngle);
+          slicesPath += `<circle cx="${dotX}" cy="${dotY}" r="3.5" fill="#facc15"/>`;
+        }
+      }
+
+      return `
+        <div class="flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-md border-2 border-rose-200">
+          <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="filter drop-shadow-sm">
+            <circle cx="${center}" cy="${center}" r="${radius + 4}" fill="#fbcfe8" opacity="0.4"/>
+            ${slicesPath}
+          </svg>
+          ${label ? `<span class="mt-1 text-xs font-bold text-slate-500">${label}</span>` : ''}
+          <span class="text-xs font-bold text-pink-600 mt-1">${num} / ${den} 份</span>
+        </div>
+      `;
+    }
+
+    function createBarSVG(den, num, label = '', width = 170, height = 50) {
+      const cellW = (width - 8) / den;
+      let cells = '';
+
+      for (let i = 0; i < den; i++) {
+        const x = 4 + i * cellW;
+        const isFilled = i < num;
+        const fill = isFilled ? '#38bdf8' : '#f8fafc';
+        const stroke = '#0284c7';
+
+        cells += `
+          <rect x="${x}" y="5" width="${cellW}" height="${height - 10}" 
+                rx="4" fill="${fill}" stroke="${stroke}" stroke-width="1.8" />
+        `;
+        if (isFilled) {
+          // 水波波紋或星星小符號
+          cells += `<circle cx="${x + cellW/2}" cy="${height/2}" r="3" fill="#ffffff" opacity="0.8"/>`;
+        }
+      }
+
+      return `
+        <div class="flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-md border-2 border-sky-200">
+          <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+            <rect x="2" y="3" width="${width - 4}" height="${height - 6}" rx="6" fill="#e0f2fe" stroke="#bae6fd" stroke-width="2"/>
+            ${cells}
+          </svg>
+          ${label ? `<span class="mt-1 text-xs font-bold text-slate-500">${label}</span>` : ''}
+          <span class="text-xs font-bold text-sky-600 mt-1">${num} / ${den} 格</span>
+        </div>
+      `;
+    }
+
+    /* ==========================================================
+       5. 介面算式與預覽渲染
+       ========================================================== */
+    function renderFormulaFraction(frac) {
+      if (frac.num === '?') {
+        return `
+          <div class="inline-flex flex-col items-center mx-1">
+            <span class="text-pink-500 font-black animate-pulse">?</span>
+            <div class="w-7 h-0.5 bg-slate-700"></div>
+            <span>${frac.den}</span>
+          </div>
+        `;
+      }
+      return `
+        <div class="inline-flex items-center gap-1 mx-1">
+          ${frac.whole > 0 ? `<span class="text-2xl font-bold">${frac.whole}</span>` : ''}
+          <div class="inline-flex flex-col items-center">
+            <span class="text-sm leading-tight">${frac.num}</span>
+            <div class="w-6 h-0.5 bg-slate-700 my-0.5"></div>
+            <span class="text-sm leading-tight">${frac.den}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 更新即時輸入預覽
+    function updatePreview() {
+      const whole = parseInt(document.getElementById('input-whole').value) || 0;
+      const numStr = document.getElementById('input-num').value.trim();
+      const denStr = document.getElementById('input-den').value.trim();
+      const previewDiv = document.getElementById('preview-math');
+
+      if (!numStr && !denStr && !whole) {
+        previewDiv.innerHTML = `<span class="text-slate-400 font-normal">請輸入數值</span>`;
+        return;
+      }
+
+      let html = '';
+      if (whole > 0) {
+        html += `<span class="text-2xl text-purple-700 mr-2 font-black">${whole}</span>`;
+      }
+      if (numStr || denStr) {
+        html += `
+          <div class="inline-flex flex-col items-center text-center">
+            <span class="text-base text-pink-600 font-black">${numStr || '0'}</span>
+            <div class="w-8 h-0.5 bg-slate-800 my-0.5"></div>
+            <span class="text-base text-sky-600 font-black">${denStr || '1'}</span>
+          </div>
+        `;
+      } else if (whole > 0) {
+        html += `<span class="text-sm text-slate-400 ml-1">（整數）</span>`;
+      }
+
+      previewDiv.innerHTML = html;
+    }
+
+    // 監聽輸入更動事件
+    ['input-whole', 'input-num', 'input-den'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        sound.clickSound();
+        updatePreview();
+      });
+    });
+
+    /* ==========================================================
+       6. 遊戲生命週期 (載入題目、檢查答案、切換關卡)
+       ========================================================== */
+    function loadQuestion() {
+      clearInputs();
+      hideFeedback();
+
+      if (currentLevel === 1) currentQuestion = genLevel1();
+      else if (currentLevel === 2) currentQuestion = genLevel2();
+      else if (currentLevel === 3) currentQuestion = genLevel3();
+      else currentQuestion = genLevel4();
+
+      // 更新提示文案
+      document.getElementById('level-badge').innerText = `${currentQuestion.title}`;
+      document.getElementById('question-prompt').innerText = currentQuestion.prompt;
+
+      // 繪製 SVG 圖案
+      const graphicContainer = document.getElementById('graphic-container');
+      graphicContainer.innerHTML = '';
+
+      currentQuestion.items.forEach(item => {
+        if (currentQuestion.shapeType === 'circle') {
+          graphicContainer.innerHTML += createCircleSVG(item.den, item.num, item.label);
+        } else {
+          graphicContainer.innerHTML += createBarSVG(item.den, item.num, item.label);
+        }
+      });
+
+      // 算式展示區 (第三、四層)
+      const formulaDisplay = document.getElementById('formula-display');
+      if (currentQuestion.formula) {
+        formulaDisplay.classList.remove('hidden');
+        formulaDisplay.classList.add('flex');
+        const f = currentQuestion.formula;
+        formulaDisplay.innerHTML = `
+          ${renderFormulaFraction(f.left)}
+          <span class="mx-2 text-rose-500 font-black text-2xl">${f.op}</span>
+          ${renderFormulaFraction(f.right)}
+          <span class="mx-2 text-slate-400 font-bold">=</span>
+          <span class="text-pink-600 font-black text-2xl">?</span>
+        `;
+      } else {
+        formulaDisplay.classList.add('hidden');
+        formulaDisplay.classList.remove('flex');
+      }
+    }
+
+    function switchLevel(lvl) {
+      sound.clickSound();
+      currentLevel = lvl;
+      for (let i = 1; i <= 4; i++) {
+        const tab = document.getElementById(`tab-lvl-${i}`);
+        if (i === lvl) {
+          tab.className = 'level-tab bg-pink-500 text-white font-black py-2.5 px-3 rounded-2xl shadow-lg border-2 border-pink-400 flex flex-col items-center justify-center transition-all duration-200 transform scale-105';
+        } else {
+          tab.className = 'level-tab bg-white text-slate-600 font-bold py-2.5 px-3 rounded-2xl shadow-sm border-2 border-slate-200 hover:border-pink-300 flex flex-col items-center justify-center transition-all duration-200';
+        }
+      }
+      loadQuestion();
+    }
+
+    function clearInputs() {
+      document.getElementById('input-whole').value = '';
+      document.getElementById('input-num').value = '';
+      document.getElementById('input-den').value = '';
+      updatePreview();
+    }
+
+    function hideFeedback() {
+      const fb = document.getElementById('feedback-box');
+      fb.className = 'hidden';
+      fb.innerHTML = '';
+      document.getElementById('game-card').classList.remove('shake');
+    }
+
+    // 檢查答案是否正確
+    function checkAnswer() {
+      const inWhole = parseInt(document.getElementById('input-whole').value) || 0;
+      const inNum = parseInt(document.getElementById('input-num').value);
+      const inDen = parseInt(document.getElementById('input-den').value);
+
+      if (isNaN(inNum) || isNaN(inDen)) {
+        showFeedback(false, '請輸入分子與分母哦！若整數為 0 可留空。');
+        sound.wrongSound();
+        return;
+      }
+
+      if (inDen <= 0) {
+        showFeedback(false, '小提醒：分數的分母不能為 0 或負數唷！');
+        sound.wrongSound();
+        return;
+      }
+
+      const target = currentQuestion.target;
+      let isCorrect = false;
+
+      // 檢查是否完全匹配帶分數
+      if (inWhole === target.whole && inNum === target.num && inDen === target.den) {
+        isCorrect = true;
+      }
+      // 如果支援假分數輸入 (例如第二關)
+      else if (target.altImproper && inWhole === target.altImproper.whole && inNum === target.altImproper.num && inDen === target.altImproper.den) {
+        isCorrect = true;
+      }
+      // 數值等價檢查 (但第四關約分要求最簡分數)
+      else if (currentLevel !== 4 && (inWhole + inNum / inDen === target.whole + target.num / target.den)) {
+        isCorrect = true;
+      }
+
+      if (isCorrect) {
+        handleSuccess();
+      } else {
+        handleFailure();
+      }
+    }
+
+    function handleSuccess() {
+      sound.correctSound();
+      currentStreak++;
+      document.getElementById('streak-counter').innerText = `🔥 ${currentStreak}`;
+
+      // 星星獎勵 (連續答對獎勵加倍)
+      const earnedStars = currentStreak >= 3 ? 3 : 2;
+      addStars(earnedStars);
+
+      // 施放紙花
+      triggerConfetti();
+
+      showFeedback(true, `🎉 太棒了！回答完全正確！獲得 ${earnedStars} 顆星星！⭐`);
+
+      // 檢查徽章解鎖
+      checkBadges();
+
+      // 延遲載入下一題
+      setTimeout(() => {
+        loadQuestion();
+      }, 1800);
+    }
+
+    function handleFailure() {
+      sound.wrongSound();
+      currentStreak = 0;
+      document.getElementById('streak-counter').innerText = `🔥 0`;
+      
+      const gameCard = document.getElementById('game-card');
+      gameCard.classList.remove('shake');
+      void gameCard.offsetWidth; // 強制重繪
+      gameCard.classList.add('shake');
+
+      const target = currentQuestion.target;
+      let hint = `正確答案是：`;
+      if (target.whole > 0) hint += `【整數 ${target.whole}】 `;
+      hint += `【分子 ${target.num} / 分母 ${target.den}】`;
+
+      showFeedback(false, `再試一次看看唷！加油！💪 (${hint})`);
+    }
+
+    function showFeedback(isSuccess, msg) {
+      const fb = document.getElementById('feedback-box');
+      fb.classList.remove('hidden');
+      if (isSuccess) {
+        fb.className = 'mt-5 w-full p-4 rounded-2xl text-center font-black text-base sm:text-lg bg-emerald-100 border-2 border-emerald-400 text-emerald-800 animate-bounce';
+      } else {
+        fb.className = 'mt-5 w-full p-4 rounded-2xl text-center font-black text-base sm:text-lg bg-rose-100 border-2 border-rose-400 text-rose-800';
+      }
+      fb.innerHTML = msg;
+    }
+
+    /* ==========================================================
+       7. 星星與徽章系統邏輯
+       ========================================================== */
+    function addStars(num) {
+      totalStars += num;
+      sound.starSound();
+      const starElem = document.getElementById('star-total');
+      starElem.innerText = totalStars;
+      starElem.classList.add('scale-125', 'text-amber-500');
+      setTimeout(() => {
+        starElem.classList.remove('scale-125', 'text-amber-500');
+      }, 300);
+      document.getElementById('modal-star-count').innerText = totalStars;
+    }
+
+    function checkBadges() {
+      let newlyUnlocked = false;
+      BADGES.forEach(b => {
+        if (!b.unlocked && totalStars >= b.needStars) {
+          b.unlocked = true;
+          newlyUnlocked = true;
+          showBadgeNotification(b);
+        }
+      });
+      updateBadgeUI();
+      if (newlyUnlocked) {
+        sound.badgeUnlockSound();
+      }
+    }
+
+    function showBadgeNotification(badge) {
+      const div = document.createElement('div');
+      div.className = 'fixed top-6 right-6 bg-gradient-to-r from-amber-400 to-orange-400 text-white font-extrabold px-5 py-3.5 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-3 z-50 animate-star';
+      div.innerHTML = `
+        <span class="text-3xl">${badge.emoji}</span>
+        <div>
+          <div class="text-xs uppercase text-amber-100">恭喜榮譽解鎖徽章！</div>
+          <div class="text-base">${badge.name}</div>
+        </div>
+      `;
+      document.body.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transition = 'opacity 0.5s';
+        setTimeout(() => div.remove(), 500);
+      }, 3500);
+    }
+
+    function updateBadgeUI() {
+      const unlockedCount = BADGES.filter(b => b.unlocked).length;
+      document.getElementById('badge-count-pill').innerText = `${unlockedCount}/${BADGES.length}`;
+      
+      const grid = document.getElementById('badges-grid');
+      grid.innerHTML = '';
+      BADGES.forEach(b => {
+        const isUnlocked = b.unlocked;
+        grid.innerHTML += `
+          <div class="p-4 rounded-2xl border-3 flex items-center gap-3.5 transition-all ${
+            isUnlocked 
+              ? 'bg-amber-50/80 border-amber-300 shadow-md' 
+              : 'bg-slate-50 border-slate-200 opacity-60'
+          }">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl ${
+              isUnlocked ? 'bg-amber-200 shadow-inner' : 'bg-slate-200 grayscale'
+            }">
+              ${b.emoji}
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="font-extrabold text-base ${isUnlocked ? 'text-slate-800' : 'text-slate-400'}">${b.name}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${
+                  isUnlocked ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-500'
+                }">
+                  ${isUnlocked ? '已擁有 ✨' : `需 ${b.needStars} ⭐`}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1">${b.desc}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function toggleBadgeModal(show) {
+      sound.clickSound();
+      const modal = document.getElementById('badge-modal');
+      if (show) {
+        updateBadgeUI();
+        document.getElementById('modal-star-count').innerText = totalStars;
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    /* ==========================================================
+       8. 歡慶彩花效果 (Full Canvas Confetti Engine)
+       ========================================================== */
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let confettiTimer = null;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function triggerConfetti() {
+      canvas.classList.remove('hidden');
+      particles = [];
+      const colors = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#facc15'];
+
+      for (let i = 0; i < 90; i++) {
+        particles.push({
+          x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+          y: canvas.height * 0.4 + (Math.random() - 0.5) * 100,
+          vx: (Math.random() - 0.5) * 14,
+          vy: (Math.random() - 1.2) * 12,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          gravity: 0.35,
+          alpha: 1
+        });
+      }
+
+      if (confettiTimer) cancelAnimationFrame(confettiTimer);
+      renderConfetti();
+
+      setTimeout(() => {
+        canvas.classList.add('hidden');
+      }, 2200);
+    }
+
+    function renderConfetti() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.rotation += p.rotSpeed;
+        p.alpha -= 0.012;
+
+        if (p.alpha > 0) {
+          alive = true;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        }
+      });
+
+      if (alive) {
+        confettiTimer = requestAnimationFrame(renderConfetti);
+      }
+    }
+
+    // 啟動首頁遊戲
+    window.addEventListener('DOMContentLoaded', () => {
+      updateBadgeUI();
+      loadQuestion();
+    });
+  </script>
+</body>
+</html>
